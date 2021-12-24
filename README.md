@@ -1,5 +1,5 @@
 # h4l4j
-EEDK packages for ePO to help locate vulnerable log4j in your environment
+EEDK packages for ePO to help locate vulnerable log4j in your environment. Every endpoint Linux and Windows (Windows with PowerShell) with a McAfee Agent can utilize the script. 
 
 ## Use with McAfee ePO
 
@@ -7,7 +7,7 @@ These EEDK packages have been built to help organisations that do not yet have a
 
 This approach uses the power of EEDK deployments on ePO to push a search request/script to all your targetted (or all) endpoints, execute the search and create a log of instances discovered on each endpoint.
 
-Then custom attributes are also reported back to ePO for each instance indicating the level of potential exposure that has been tentatively uncovered.
+Then Agent custom properties are also reported back to ePO for each instance indicating the level of potential exposure that has been tentatively uncovered.
 
 This is a great first step and additional observation tool to help you focus on more risky/vulnerable/higher priority systems first.
 
