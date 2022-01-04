@@ -1,12 +1,57 @@
 #!/bin/bash
 
-# source https://github.com/rubo77/log4j_checker_beta
+# based on https://github.com/rubo77/log4j_checker_beta
 
 # needs locate to be installed, be sure to be up-to-date with
 # sudo updatedb
 
 # regular expression, check the following packages:
 PACKAGES='solr\|elastic\|log4j'
+
+# defaults
+# used if not specified on the command line
+# -d '/opt/McAfee/bin' -c 6
+MCAFEE_DIR='/opt/McAfee/agent/bin' # + [ '/maconfig -custom -prop8 "message" | '/cmdagent -p' ]
+CUSTOM_PROP=''  # which custom prop to use for 
+
+# parse command line arguments and override if provided
+
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help)
+      echo "usage:"
+      echo "h4l4j.sh [args...] [SHA256_HASHES_URL]"
+      echo "  (-h | --help)                                      # This usage message"
+      echo "  (-d | --directory) <mcafee/install/directory>      # The mcafee installation directory (/opt/McAfee/agent/bin)"
+      echo "  (-p | --prop) <1..8>                               # The custom props slot to use for the result"
+      echo 
+      exit 0
+      ;;
+    -d|--directory)
+      MCAFEE_DIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -p|--prop)
+      CUSTOM_PROP="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -*|--*)
+      echo "Unknown option $1 try '-h'"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
 
 # Set this if you have a download for sha256 hashes
 SHA256_HASHES_URL="$1"
@@ -28,7 +73,7 @@ function ok() {
 }
 
 if [ "$SHA256_HASHES_URL" = "" ]; then
-  information "using default hash file. If you want to use other hashes, set another URL as first argument"
+  information "using default hash file. If you want to use other hashes, provide another URL (try '-h' for usage information)"
   SHA256_HASHES_URL="https://raw.githubusercontent.com/rubo77/log4j_checker_beta/main/hashes-pre-cve.txt"
 fi
 
@@ -78,6 +123,9 @@ if [[ $? = 0 && -s "$file_temp_hashes.in" ]]; then
   information "Downloaded vulnerable hashes from $SHA256_HASHES_URL"
 fi
 
+WARN = "Warning"
+INFO = "Info"
+
 # first scan: use locate
 echo
 information "Looking for files containing log4j..."
@@ -88,8 +136,10 @@ OUTPUT="$(locate_log4j | grep -iv log4js | grep -v log4j_checker_beta)"
 if [ "$OUTPUT" ]; then
   warning "Maybe vulnerable, those files contain the name:"
   printf "%s\n" "$OUTPUT"
+  WARN="${WARN}\nFiles Containing 'log4j'"
 else
   ok "No files containing log4j"
+  INFO="${INFO}\nNo files containing log4j"
 fi
 
 # second scan: use package manager
@@ -100,9 +150,11 @@ if [ "$(command -v yum)" ]; then
   OUTPUT="$(yum list installed | grep -i $PACKAGES | grep -iv log4js)"
   if [ "$OUTPUT" ]; then
     warning "Maybe vulnerable, yum installed packages:"
+    WARN="${WARN}\nyum installed log4j packages"
     printf "%s\n" "$OUTPUT"
   else
     ok "No yum packages found"
+    INFO="${INFO}\nNo yum packages found"
   fi
 fi
 if [ "$(command -v dpkg)" ]; then
@@ -110,9 +162,11 @@ if [ "$(command -v dpkg)" ]; then
   OUTPUT="$(dpkg -l | grep -i $PACKAGES | grep -iv log4js)"
   if [ "$OUTPUT" ]; then
     warning "Maybe vulnerable, dpkg installed packages:"
+    WARN="${WARN}\ndpkg installed log4j packages"
     printf "%s\n" "$OUTPUT"
   else
     ok "No dpkg packages found"
+    INFO="${INFO}\nNo dpkg packages found"
   fi
 fi
 
@@ -122,10 +176,12 @@ information "Checking if Java is installed..."
 JAVA="$(command -v java)"
 if [ "$JAVA" ]; then
   warning "Java is installed"
+  WARN="${WARN}\nJava is installed"
   information "   Java applications often bundle their libraries inside binary files,"
   information "   so there could be log4j in such applications."
 else
   ok "Java is not installed"
+  INFO="${INFO}\nJava is not installed"
 fi
 
 # perform best-effort find call for all jars and optionally check against hashes
@@ -190,3 +246,6 @@ fi
 echo
 warning "This script does not guarantee that you are not vulnerable, but is a strong hint."
 echo
+
+echo ${MCAFEE_DIR}/maconfig -custom -prop8 "${WARN}\n${INFO}"
+echo ${MCAFEE_DIR}/cmdagent -p
