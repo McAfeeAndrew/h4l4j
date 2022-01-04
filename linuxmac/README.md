@@ -3,8 +3,10 @@ EEDK packages for ePO to help locate vulnerable log4j in your environment
 
 ## Process
 
-The 
-log4j
+command line:
+```bash
+h4l4j.sh 2>&1 1>>/var/log/h4l4j.log
+```
 
 ## Credit for prior work
 
