@@ -52,6 +52,10 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
+if [ "$CUSTOM_PROP" = "" ]; then
+  warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
+  exit 1
+fi
 
 # Set this if you have a download for sha256 hashes
 SHA256_HASHES_URL="$1"
@@ -247,5 +251,5 @@ echo
 warning "This script does not guarantee that you are not vulnerable, but is a strong hint."
 echo
 
-echo ${MCAFEE_DIR}/maconfig -custom -prop8 "${WARN}\n${INFO}"
-echo ${MCAFEE_DIR}/cmdagent -p
+${MCAFEE_DIR}/maconfig -custom "-prop${CUSTOM_PROP}" "${WARN}\n${INFO}"
+${MCAFEE_DIR}/cmdagent -p
