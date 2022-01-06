@@ -127,8 +127,8 @@ if [[ $? = 0 && -s "$file_temp_hashes.in" ]]; then
   information "Downloaded vulnerable hashes from $SHA256_HASHES_URL"
 fi
 
-WARN = "Warning"
-INFO = "Info"
+WARN = "Warning:"
+# INFO = "Info:"
 
 # first scan: use locate
 echo
@@ -140,10 +140,10 @@ OUTPUT="$(locate_log4j | grep -iv log4js | grep -v log4j_checker_beta)"
 if [ "$OUTPUT" ]; then
   warning "Maybe vulnerable, those files contain the name:"
   printf "%s\n" "$OUTPUT"
-  WARN="${WARN}\nFiles Containing 'log4j'"
+  WARN="${WARN} Files Containing 'log4j'."
 else
   ok "No files containing log4j"
-  INFO="${INFO}\nNo files containing log4j"
+  # INFO="${INFO} No files containing log4j."
 fi
 
 # second scan: use package manager
@@ -154,11 +154,11 @@ if [ "$(command -v yum)" ]; then
   OUTPUT="$(yum list installed | grep -i $PACKAGES | grep -iv log4js)"
   if [ "$OUTPUT" ]; then
     warning "Maybe vulnerable, yum installed packages:"
-    WARN="${WARN}\nyum installed log4j packages"
+    WARN="${WARN} yum installed log4j packages."
     printf "%s\n" "$OUTPUT"
   else
     ok "No yum packages found"
-    INFO="${INFO}\nNo yum packages found"
+    # INFO="${INFO} No yum packages found."
   fi
 fi
 if [ "$(command -v dpkg)" ]; then
@@ -166,11 +166,11 @@ if [ "$(command -v dpkg)" ]; then
   OUTPUT="$(dpkg -l | grep -i $PACKAGES | grep -iv log4js)"
   if [ "$OUTPUT" ]; then
     warning "Maybe vulnerable, dpkg installed packages:"
-    WARN="${WARN}\ndpkg installed log4j packages"
+    WARN="${WARN} dpkg installed log4j packages."
     printf "%s\n" "$OUTPUT"
   else
     ok "No dpkg packages found"
-    INFO="${INFO}\nNo dpkg packages found"
+    # INFO="${INFO} No dpkg packages found."
   fi
 fi
 
@@ -180,12 +180,12 @@ information "Checking if Java is installed..."
 JAVA="$(command -v java)"
 if [ "$JAVA" ]; then
   warning "Java is installed"
-  WARN="${WARN}\nJava is installed"
+  WARN="${WARN} Java is installed."
   information "   Java applications often bundle their libraries inside binary files,"
   information "   so there could be log4j in such applications."
 else
   ok "Java is not installed"
-  INFO="${INFO}\nJava is not installed"
+  # INFO="${INFO} Java is not installed."
 fi
 
 # perform best-effort find call for all jars and optionally check against hashes
@@ -233,6 +233,7 @@ if [ "$(command -v unzip)" ]; then
     information "Found $COUNT files in unpacked binaries containing the string 'log4j' with $COUNT_FOUND vulnerabilities"
     if [[ $COUNT_FOUND -gt 0 ]]; then
       warning "Found $COUNT_FOUND vulnerabilities in unpacked binaries"
+      WARN="Found $COUNT_FOUND vulnerabilities in unpacked binaries."
     fi
   fi
 else
@@ -251,5 +252,5 @@ echo
 warning "This script does not guarantee that you are not vulnerable, but is a strong hint."
 echo
 
-${MCAFEE_DIR}/maconfig -custom "-prop${CUSTOM_PROP}" "${WARN}\n${INFO}"
+${MCAFEE_DIR}/maconfig -custom "-prop${CUSTOM_PROP}" "${WARN}"
 ${MCAFEE_DIR}/cmdagent -p
