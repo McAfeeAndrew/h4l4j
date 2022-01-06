@@ -1,0 +1,5 @@
+# default behaviour (in case of no global setting)
+* text=auto
+
+# these files MUST always have only LF
+*.sh text eol=lf

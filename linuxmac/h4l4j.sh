@@ -75,7 +75,7 @@ if [ "$CUSTOM_PROP" = "" ]; then
   warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
   exit 1
 fi
- 
+
 if [ "$SHA256_HASHES_URL" = "" ]; then
   information "using default hash file. If you want to use other hashes, provide another URL (try '-h' for usage information)"
   SHA256_HASHES_URL="https://raw.githubusercontent.com/rubo77/log4j_checker_beta/main/hashes-pre-cve.txt"
