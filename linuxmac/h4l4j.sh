@@ -52,11 +52,6 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ "$CUSTOM_PROP" = "" ]; then
-  warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
-  exit 1
-fi
-
 # Set this if you have a download for sha256 hashes
 SHA256_HASHES_URL="$1"
 
@@ -75,6 +70,11 @@ function information() {
 function ok() {
   printf "${GREEN}[INFO] %s${ENDCOLOR}\n" "$1"
 }
+
+if [ "$CUSTOM_PROP" = "" ]; then
+  warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
+  exit 1
+fi
 
 if [ "$SHA256_HASHES_URL" = "" ]; then
   information "using default hash file. If you want to use other hashes, provide another URL (try '-h' for usage information)"
