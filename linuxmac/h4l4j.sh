@@ -80,7 +80,7 @@ fi
 
 if [ "$SHA256_HASHES_URL" = "" ]; then
   information "using default hash file. If you want to use other hashes, provide another URL (try '-h' for usage information)"
-  SHA256_HASHES_URL="https://raw.githubusercontent.com/rubo77/log4j_checker_beta/main/hashes-pre-cve.txt"
+  SHA256_HASHES_URL="https://raw.githubusercontent.com/McAfeeAndrew/h4l4j/main/hashes-pre-cve.txt"
 fi
 
 export LANG=

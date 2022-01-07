@@ -39,10 +39,30 @@
    Those parts are Copyright (c) 2021 by hellstorm.de
    The new parts for ePO/custom props are Copyright (c) 2022 by McAfee Enterprise
 #>
+[CmdletBinding(ConfirmImpact = 'Low')]
+param
+(
+    [Parameter(ValueFromPipeline,
+    ValueFromPipelineByPropertyName)]
+    [Alias('Fix')]
+    [switch]
+    $AutoFix,
+    [Parameter(ValueFromPipeline,
+    ValueFromPipelineByPropertyName)]
+    [Alias('Property')]
+    [Int32]
+    $Prop,
+    [Parameter(ValueFromPipeline,
+    ValueFromPipelineByPropertyName)]
+    [ValidateNotNullOrEmpty()]
+    [Alias('TempDirectory')]
+    [string]
+    $WorkDirectory = 'C:\temp\log4j-vscan'
+)
 
 function write_customprops() {
     param(
-        [Int32]$prop
+        [Int32]$prop,
         [string]$Value
     )
 
@@ -85,133 +105,136 @@ function write_customprops() {
     }
 }
 
-[CmdletBinding(ConfirmImpact = 'Low')]
-param
-(
-    [Parameter(ValueFromPipeline,
-    ValueFromPipelineByPropertyName)]
-    [Alias('Fix')]
-    [switch]
-    $AutoFix,
-    [Parameter(ValueFromPipeline,
-    ValueFromPipelineByPropertyName)]
-    [Alias('Property')]
-    [Int32]
-    $Prop,
-    [Parameter(ValueFromPipeline,
-    ValueFromPipelineByPropertyName)]
-    [ValidateNotNullOrEmpty()]
-    [Alias('TempDirectory')]
-    [string]
-    $WorkDirectory = 'C:\temp\log4j-vscan'
-)
+function download_hashes() {
+    param(
+        [string]
+        $DownloadDirectory,
+        [string]
+        $Url = 'https://raw.githubusercontent.com/McAfeeAndrew/h4l4j/main/hashes-pre-cve.txt'
+    )
+    Invoke-WebRequest -Uri $Url -OutFile $DownloadDirectory
+}
 
-begin
+# Generate random temp directory
+$RandomString = [IO.Path]::GetRandomFileName()
+$TempDirectory = ('temp-{0}' -f ($RandomString))
+
+# Create working directory if not exist
+if (-not (Test-Path -Path $WorkDirectory -ErrorAction SilentlyContinue))
 {
-   # Generate random temp directory
-   $RandomString = [IO.Path]::GetRandomFileName()
-   $TempDirectory = ('temp-{0}' -f ($RandomString))
+    $null = (New-Item -Path $WorkDirectory -ItemType 'directory' -Force -Confirm:$false -ErrorAction SilentlyContinue)
+}
 
-   # Create working directory if not exist
-   if (-not (Test-Path -Path $WorkDirectory -ErrorAction SilentlyContinue))
-   {
-      $null = (New-Item -Path $WorkDirectory -ItemType 'directory' -Force -Confirm:$false -ErrorAction SilentlyContinue)
-   }
+# Create temp dir
+if (-not (Test-Path -Path (Join-Path -Path $WorkDirectory -ChildPath $TempDirectory) -ErrorAction SilentlyContinue))
+{
+    $null = (New-Item -Path $WorkDirectory -Name $TempDirectory -ItemType 'directory' -Force -Confirm:$false -ErrorAction SilentlyContinue)
+}
 
-   # Create temp dir
-   if (-not (Test-Path -Path (Join-Path -Path $WorkDirectory -ChildPath $TempDirectory) -ErrorAction SilentlyContinue))
-   {
-      $null = (New-Item -Path $WorkDirectory -Name $TempDirectory -ItemType 'directory' -Force -Confirm:$false -ErrorAction SilentlyContinue)
-   }
+# Working files/dir, can be, but shouldn't be changed
+$TeampArchive = ('{0}\{1}\tmp.zip' -f ($WorkDirectory), ($TempDirectory))
+$FiedArchive = ('{0}\{1}\new.zip' -f ($WorkDirectory), ($TempDirectory))
+$UnpackedDirectory = ('{0}\{1}\unpacked' -f ($WorkDirectory), ($TempDirectory))
 
-   # Working files/dir, can be, but shouldn't be changed
-   $TeampArchive = ('{0}\{1}\tmp.zip' -f ($WorkDirectory), ($TempDirectory))
-   $FiedArchive = ('{0}\{1}\new.zip' -f ($WorkDirectory), ($TempDirectory))
-   $UnpackedDirectory = ('{0}\{1}\unpacked' -f ($WorkDirectory), ($TempDirectory))
+# Logging file, normally stored in workdir
+$LogFile = ('{0}\Log4j-Scann-Results-{1}.txt' -f ($WorkDirectory), (Get-Date -Format 'MM-dd-yyyy_HH-mm-ss'))
 
-   # Logging file, normally stored in workdir
-   $LogFile = ('{0}\Log4j-Scann-Results-{1}.txt' -f ($WorkDirectory), (Get-Date -Format 'MM-dd-yyyy_HH-mm-ss'))
-
-   # confirm valid prop
-   if ($Prop < 1) or ($Prop > 8) {
+# confirm valid prop
+if (($Prop -eq $null) -or ($Prop -lt 1) -or ($Prop -gt 8)) {
+    "error: missing Prop argument"
     Write-Verbose -Message ('Need to specify Prop between 1..8 inclusive')
     exit
 }
-}
 
-process
+$Messages = @()
+
+# Download the hashes
+$HashesFile = ('{0}\{1}\hashes.txt' -f ($WorkDirectory), ($TempDirectory))
+$HashesFile
+download_hashes -DownloadDirectory $HashesFile
+
+
+# Get all local disk drives
+$AllFixedDisks = (Get-Volume -ErrorAction SilentlyContinue | Where-Object -FilterScript {
+        (($_.DriveType -eq 'Fixed') -and ($_.DriveLetter -ne $null))
+})
+
+$found44228 = 0
+$found45046 = 0
+$foundOutdated = 0
+$foundUnsafe = 0
+$foundExploit = 0
+
+foreach ($FixedDisk in $AllFixedDisks.DriveLetter)
 {
-   # Get all local disk drives
-   $AllFixedDisks = (Get-Volume -ErrorAction SilentlyContinue | Where-Object -FilterScript {
-         (($_.DriveType -eq 'Fixed') -and ($_.DriveLetter -ne $null))
-   })
+    Write-Verbose -Message ('Scanning drive {0}...' -f $FixedDisk)
 
-   foreach ($FixedDisk in $AllFixedDisks.DriveLetter)
-   {
-      Write-Verbose -Message ('Scanning drive {0}...' -f $FixedDisk)
+    # Search all local drives for log4j* files
+    Get-ChildItem -Path ('{0}:\' -f $FixedDisk) -Filter 'log4j*.jar' -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object -Process {
+        $isclean = $false
+        $JARArchiveFile = $_.FullName
 
-      # Search all local drives for log4j* files
-      Get-ChildItem -Path ('{0}:\' -f $FixedDisk) -Filter 'log4j*.jar' -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object -Process {
-         $isclean = $false
-         $JARArchiveFile = $_.FullName
+        Write-Verbose -Message ('Scann {0}' -f $JARArchiveFile)
 
-         Write-Verbose -Message ('Scann {0}' -f $JARArchiveFile)
+        # if a JAR archive is found, copy to temp directiry
+        Copy-Item -Path $JARArchiveFile -Destination $TeampArchive
 
-         # if a JAR archive is found, copy to temp directiry
-         Copy-Item -Path $JARArchiveFile -Destination $TeampArchive
+        # Uncompress the JAR archive
+        Expand-Archive -Path $TeampArchive -DestinationPath $UnpackedDirectory
 
-         # Uncompress the JAR archive
-         Expand-Archive -Path $TeampArchive -DestinationPath $UnpackedDirectory
+        # Get version from Manifest file
+        (Get-Content -Path ('{0}\META-INF\MANIFEST.MF' -f ($UnpackedDirectory)) -ErrorAction SilentlyContinue | ForEach-Object -Process {
+            if ($_ -match 'Implementation-Version')
+            {
+                $ver = $_ -replace '^.*: ', ''
+            }
+        })
 
-         # Get version from Manifest file
-         (Get-Content -Path ('{0}\META-INF\MANIFEST.MF' -f ($UnpackedDirectory)) -ErrorAction SilentlyContinue | ForEach-Object -Process {
-               if ($_ -match 'Implementation-Version')
-               {
-                  $ver = $_ -replace '^.*: ', ''
-               }
-         })
+        # Split version string into separate numbers to compare them
+        $vertok = $ver -split '\.'
 
-         # Split version string into separate numbers to compare them
-         $vertok = $ver -split '\.'
+        # Guess it is unsave until we know better
+        $unsafe = $true
 
-         # Guess it is unsave until we know better
-         $unsafe = $true
-
-         # Handle CVE-2021-44228 and CVE-2021-45046
-         if (($vertok[0].ToInt32($null) -eq 2) -and ($vertok[1].ToInt32($null) -le 15))
-         {
-            # CVE-2021-44228
+        # Handle CVE-2021-44228 and CVE-2021-45046
+        if (($vertok[0].ToInt32($null) -eq 2) -and ($vertok[1].ToInt32($null) -le 15))
+        {
+        # CVE-2021-44228
             Write-Verbose -Message ('Potential CVE-2021-44228 effected Version found: {0}' -f ($ver))
-         }
-         elseif (($vertok[0].ToInt32($null) -eq 2) -and ($vertok[1].ToInt32($null) -le 16))
-         {
+            $found44228 = $found44228 + 1
+        }
+        elseif (($vertok[0].ToInt32($null) -eq 2) -and ($vertok[1].ToInt32($null) -le 16))
+        {
             # CVE-2021-45046
             Write-Verbose -Message ('Potential CVE-2021-45046 effected Version found: {0}' -f ($ver))
-         }
-         elseif ($vertok[0].ToInt32($null) -eq 1)
-         {
+            $found45046 = 0
+        }
+        elseif ($vertok[0].ToInt32($null) -eq 1)
+        {
             # Legacy warning
             Write-Verbose -Message ('Outdated Version: {0}' -f ($ver))
-         }
-         else
-         {
+            $foundOutdated = 0
+        }
+        else
+        {
             # Any other version
             Write-Verbose -Message ('Safe Version: {0}' -f ($ver))
 
             # Skip the next steps
             $unsafe = $false
-         }
+        }
 
-         # If we found a potentially risky CVE-2021-44228 and/or CVE-2021-45046 version
-         if ($unsafe)
-         {
-            # Look for JndiLookup class and notify user/logfile
+        # If we found a potentially risky CVE-2021-44228 and/or CVE-2021-45046 version
+        if ($unsafe)
+        {
+        # Look for JndiLookup class and notify user/logfile
+            $foundUnsafe = $foundUnsafe + 1
             Get-ChildItem -Path $UnpackedDirectory -Filter 'JndiLookup.class' -Recurse -ErrorAction SilentlyContinue | ForEach-Object -Process {
-               Write-Verbose -Message ('POTENTIAL EXPLOIT:  Found in {0}' -f $_.FullName)
+                Write-Verbose -Message ('POTENTIAL EXPLOIT:  Found in {0}' -f $_.FullName)
 
-               ('POTENTIAL AFFECTED: {0}' -f ($JARArchiveFile)) | Out-File -Append -FilePath $LogFile
+                ('POTENTIAL AFFECTED: {0}' -f ($JARArchiveFile)) | Out-File -Append -FilePath $LogFile
 
-               Write-Verbose -Message 'You should download Log4j 2.17.0 (or later): https://logging.apache.org/log4j/2.x/download.html'
+                Write-Verbose -Message 'You should download Log4j 2.17.0 (or later): https://logging.apache.org/log4j/2.x/download.html'
             }
 
             # Delete JndiLookup class if $fix is $true
@@ -234,20 +257,36 @@ process
             #    # cleanup
             #    $null = (Remove-Item -Path $FiedArchive -Force -Confirm:$false -ErrorAction SilentlyContinue)
             # }
-         }
+        }
 
-         # Further cleanup
-         $null = (Remove-Item -Path $TeampArchive -Force -Confirm:$false -ErrorAction SilentlyContinue)
-         $null = (Remove-Item -Recurse -Path $UnpackedDirectory -Force -Confirm:$false -ErrorAction SilentlyContinue)
-      }
-   }
-
-   write_customprops -prop $prop -value "test"
+        # Further cleanup
+        $null = (Remove-Item -Path $TeampArchive -Force -Confirm:$false -ErrorAction SilentlyContinue)
+        $null = (Remove-Item -Recurse -Path $UnpackedDirectory -Force -Confirm:$false -ErrorAction SilentlyContinue)
+    }
 }
 
-end
-{
-    #
-    # Final Cleanup
-    $null = (Remove-Item -Recurse -Path ('{0}\{1}' -f ($WorkDirectory), ($TempDirectory)) -Force -Confirm:$false -ErrorAction SilentlyContinue)
+$result_messages = @()
+if ($found44228 -gt 0) {
+    $result_messages = $result_messages + "found $($found44228) potential CVE-2021-44228 versions"
 }
+if ($found45046 -gt 0) {
+    $result_messages = $result_messages + "found $($found45046) potential CVE-2021-45046 versions"
+}
+if ($foundExploit -gt 0) {
+    $result_messages = $result_messages + "found $($foundExploit) potential exploits"
+}
+if ($foundOutdated -gt 0) {
+    $result_messages = $result_messages + "found $($foundOutdated) outdated versions"
+}
+if ($foundUnsafe -gt 0) {
+    $result_messages = $result_messages + "found $($foundUnsafe) unsafe versions"
+}
+if ($result_messages.Count < 1) {
+    $result_messages = "Nothing found"
+}
+$result_message = $result_messages -join ", "
+write_customprops -prop $prop -value $result_message
+
+#
+# Final Cleanup
+$null = (Remove-Item -Recurse -Path ('{0}\{1}' -f ($WorkDirectory), ($TempDirectory)) -Force -Confirm:$false -ErrorAction SilentlyContinue)
