@@ -5,6 +5,8 @@
 # needs locate to be installed, be sure to be up-to-date with
 # sudo updatedb
 
+# example usage:
+# bash h4l4j.sh -p 3 >>/var/log/h4l4j.log 2>&1
 # regular expression, check the following packages:
 PACKAGES='solr\|elastic\|log4j'
 
