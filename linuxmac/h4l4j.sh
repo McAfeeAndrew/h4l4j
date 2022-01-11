@@ -14,6 +14,7 @@ PACKAGES='solr\|elastic\|log4j'
 # used if not specified on the command line
 # -d '/opt/McAfee/bin' -c 6
 MCAFEE_DIR='/opt/McAfee/agent/bin' # + [ '/maconfig -custom -prop8 "message" | '/cmdagent -p' ]
+LOG_FILE='/var/log/h4l4j.log'
 CUSTOM_PROP=''  # which custom prop to use for 
 
 # parse command line arguments and override if provided
@@ -26,7 +27,8 @@ while [[ $# -gt 0 ]]; do
       echo "usage:"
       echo "h4l4j.sh [args...] [SHA256_HASHES_URL]"
       echo "  (-h | --help)                                      # This usage message"
-      echo "  (-d | --directory) <mcafee/install/directory>      # The mcafee installation directory (/opt/McAfee/agent/bin)"
+      echo "  (-d | --directory) <mcafee/install/directory>      # The McAfee installation directory (/opt/McAfee/agent/bin)"
+      echo "  (-o | --out) <full/path/to/log/file>               # Write to this log file (/var/log/h4l4j.log)"
       echo "  (-p | --prop) <1..8>                               # The custom props slot to use for the result"
       echo 
       exit 0
@@ -38,6 +40,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -p|--prop)
       CUSTOM_PROP="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -o|--out)
+      LOG_FILE="$2"
       shift # past argument
       shift # past value
       ;;
@@ -56,6 +63,13 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 # Set this if you have a download for sha256 hashes
 SHA256_HASHES_URL="$1"
+
+if [ "$LOG_FILE" -ne "" ]; then
+  #redirect logging
+  touch $LOG_FILE
+  exec 1>$LOG_FILE
+  exec 2>&1
+fi
 
 RED="\033[0;31m"; GREEN="\033[32m"; YELLOW="\033[1;33m"; ENDCOLOR="\033[0m"
 # if you don't want colored output, set the variables to empty strings:
