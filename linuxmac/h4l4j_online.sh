@@ -25,20 +25,27 @@ OS_AGENT_LOCATION=( '/opt/McAfee/agent/bin' '/Library/McAfee/Agent/bin')
 AGENT_LOG_LOCATION=('/var/McAfee/agent/logs/') 
 # Same Agent Log location for Linux and MacOS
 
+# Write a time stamp to the log file
+NOW=$(date '+%Y-%m-%d %H:%M:%S')
+echo "${NOW} Script name: $0 ${@}">>${LOG_FILE} 2>&1
+
 RED="\033[0;31m"; GREEN="\033[32m"; YELLOW="\033[1;33m"; ENDCOLOR="\033[0m"
 # if you don't want colored output, set the variables to empty strings:
 # RED=""; GREEN=""; YELLOW=""; ENDCOLOR=""
 
 function warning() {
   printf "${RED}[WARNING] %s${ENDCOLOR}\n" "$1" >&2
+  echo "${NOW} [WARNING] "$1>>${LOG_FILE} 2>&1
 }
 
 function information() {
   printf "${YELLOW}[INFO] %s${ENDCOLOR}\n" "$1"
+  echo "${NOW} [INFO] "$1>>${LOG_FILE} 2>&1
 }
 
 function ok() {
   printf "${GREEN}[INFO] %s${ENDCOLOR}\n" "$1"
+  echo "${NOW} [INFO] "$1>>${LOG_FILE} 2>&1
 }
 
 # get number of elements in the array
@@ -65,76 +72,66 @@ then
   exit 100
 fi
 
-# defaults for agent location on Linux
-# + [ '/maconfig -custom -prop8 "message" | '/cmdagent -p' ]
-
-# Write a time stamp to the log file
-NOW=$(date '+%Y-%m-%d %H:%M:%S')
-echo "${NOW} Script name: $0 ${@}">>${LOG_FILE} 2>&1
-CUSTOM_PROP_VALUE=''
-
-
-
 # parse command line arguments and override if provided
+function parse_command_line_arguments() {
+    POSITIONAL_ARGS=()
+    while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+        echo "usage:"
+        echo "h4l4j.sh [args...] [SHA256_HASHES_URL]"
+        echo "  (-h | --help)                                      # This usage message"
+        echo "  (-d | --directory) <mcafee/install/directory>      # The McAfee installation directory (/opt/McAfee/agent/bin)"
+        echo "  (-o | --out) <full/path/to/log/file>               # Write to this log file (/var/log/h4l4j.log)"
+        echo "  (-p | --prop) <1..8>                               # The custom props slot to use for the result"
+        echo 
+        exit 0
+        ;;
+        -d|--directory)
+        MCAFEE_DIR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        -p|--prop)
+        CUSTOM_PROP="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        -o|--out)
+        LOG_FILE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        -*|--*)
+        echo "Unknown option $1 try '-h'"
+        exit 1
+        ;;
+        *)
+        POSITIONAL_ARGS+=("$1") # save positional arg
+        shift # past argument
+        ;;
+    esac
+    done
+    set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-POSITIONAL_ARGS=()
+    # Set this if you have a download for sha256 hashes
+    SHA256_HASHES_URL="$1"
+}
 
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      echo "usage:"
-      echo "h4l4j.sh [args...] [SHA256_HASHES_URL]"
-      echo "  (-h | --help)                                      # This usage message"
-      echo "  (-d | --directory) <mcafee/install/directory>      # The McAfee installation directory (/opt/McAfee/agent/bin)"
-      echo "  (-o | --out) <full/path/to/log/file>               # Write to this log file (/var/log/h4l4j.log)"
-      echo "  (-p | --prop) <1..8>                               # The custom props slot to use for the result"
-      echo 
-      exit 0
-      ;;
-    -d|--directory)
-      MCAFEE_DIR="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -p|--prop)
-      CUSTOM_PROP="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -o|--out)
-      LOG_FILE="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -*|--*)
-      echo "Unknown option $1 try '-h'"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
-done
-
-set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
-
-# Set this if you have a download for sha256 hashes
-SHA256_HASHES_URL="$1"
-
-if [ "$LOG_FILE" -ne "" ]; then
+#echo $LOG_FILE
+if [ ! -z "$LOG_FILE"  ]; then
   #redirect logging
-  touch $LOG_FILE
+  #touch $LOG_FILE
   exec 1>$LOG_FILE
   exec 2>&1
 fi
 
-if [ "$CUSTOM_PROP" = "" ]; then
-  warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
-  exit 1
-fi
+#if [ -z "$CUSTOM_PROP" ]; then
+#  warning "you need to provide a custom prop number between 1 and 8 with the -p <num> argument"
+#  exit 1
+#fi
 
-if [ "$SHA256_HASHES_URL" = "" ]; then
+if [ -z "$SHA256_HASHES_URL" ]; then
   information "using default hash file. If you want to use other hashes, provide another URL (try '-h' for usage information)"
   SHA256_HASHES_URL="https://raw.githubusercontent.com/McAfeeAndrew/h4l4j/main/hashes-pre-cve.txt"
 fi
@@ -185,7 +182,7 @@ if [[ $? = 0 && -s "$file_temp_hashes.in" ]]; then
   information "Downloaded vulnerable hashes from $SHA256_HASHES_URL"
 fi
 
-WARN = "Warning:"
+WARN="H4L4J ${NOW}:"
 # INFO = "Info:"
 
 # first scan: use locate
@@ -201,6 +198,7 @@ if [ "$OUTPUT" ]; then
   WARN="${WARN} Files Containing 'log4j'."
 else
   ok "No files containing log4j"
+  WARN="${WARN} No files containing 'log4j'"
   # INFO="${INFO} No files containing log4j."
 fi
 
@@ -216,6 +214,7 @@ if [ "$(command -v yum)" ]; then
     printf "%s\n" "$OUTPUT"
   else
     ok "No yum packages found"
+    WARN="${WARN} No yum log4j packages."
     # INFO="${INFO} No yum packages found."
   fi
 fi
@@ -228,6 +227,7 @@ if [ "$(command -v dpkg)" ]; then
     printf "%s\n" "$OUTPUT"
   else
     ok "No dpkg packages found"
+    WARN="${WARN} No dpkg log4j packages."
     # INFO="${INFO} No dpkg packages found."
   fi
 fi
@@ -243,6 +243,7 @@ if [ "$JAVA" ]; then
   information "   so there could be log4j in such applications."
 else
   ok "Java is not installed"
+  WARN="${WARN} Java is NOT installed."
   # INFO="${INFO} Java is not installed."
 fi
 
@@ -291,7 +292,7 @@ if [ "$(command -v unzip)" ]; then
     information "Found $COUNT files in unpacked binaries containing the string 'log4j' with $COUNT_FOUND vulnerabilities"
     if [[ $COUNT_FOUND -gt 0 ]]; then
       warning "Found $COUNT_FOUND vulnerabilities in unpacked binaries"
-      WARN="Found $COUNT_FOUND vulnerabilities in unpacked binaries."
+      WARN="${WARN} Found $COUNT_FOUND vulnerabilities in unpacked binaries."
     fi
   fi
 else
@@ -310,5 +311,11 @@ echo
 warning "This script does not guarantee that you are not vulnerable, but is a strong hint."
 echo
 
-${MCAFEE_DIR}/maconfig -custom "-prop${CUSTOM_PROP}" "${WARN}"
-${MCAFEE_DIR}/cmdagent -p
+${MCAFEE_DIR}/maconfig -custom "-prop${CUSTOM_PROP}" "${WARN}">>${LOG_FILE} 2>&1
+${MCAFEE_DIR}/cmdagent -p>>${LOG_FILE} 2>&1
+${MCAFEE_DIR}/cmdagent -i
+
+NOW=$(date '+%Y-%m-%d %H:%M:%S')
+echo "${NOW} Done. Status returned: ${WARN}">>${LOG_FILE} 2>&1
+
+exit 0
