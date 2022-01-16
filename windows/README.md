@@ -1,9 +1,6 @@
 # h4l4j
 EEDK packages for ePO to help locate vulnerable log4j in your environment
 
-## Process
-
-WORK IN PROGRESS
 
 ePO Package ready
 Include a small CMD file needed for the ePO package to launch the PS1 file.
@@ -14,5 +11,8 @@ Custom 8 	H4L4J 2022-01-16 17:25:45: found 9 potential CVE-2021-44228 versions, 
 
 If the Agent Self Protection function is disabled during the scanning with h4l4j the log file will be placed in the C:\Programdata\McAfee>agent\logs\ directory where it can be pulled from ePO using Single System Troubleshooting.
 
+## Process
+
+WORK IN PROGRESS
 TO:DO
 Make an offline version of the scanner.
