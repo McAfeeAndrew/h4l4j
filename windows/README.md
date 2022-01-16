@@ -14,9 +14,13 @@ Example of Custom Prop in ePO from an ePO server with Update 11 (note Update 12 
 Custom 8 	H4L4J 2022-01-16 17:25:45: found 9 potential CVE-2021-44228 versions, found 1 outdated versions, found 13 unsafe versions - Check Log: C:\temp\log4j-vscan\Log4j-Scan-Results-01-16-2022_17-25-45.txt
 
 Log4j-Scan-Results-01-16-2022_17-25-45.txt
+
 POTENTIAL AFFECTED: C:\Program Files (x86)\McAfee\ePolicy Orchestrator\Installer\Core\lib\log4j-core-2.14.1.jar
+
 POTENTIAL AFFECTED: C:\Program Files (x86)\McAfee\ePolicy Orchestrator\Server\lib\log4j-core-2.14.1.jar
+
 POTENTIAL AFFECTED: C:\Program Files (x86)\McAfee\ePolicy Orchestrator\updates\LatestBuild\ePOUpdater\resources\app\release\tomcat\server\lib\log4j-core-2.14.1.jar
+
 
 C:\Windows\TEMP\EEDK_Debug.log file contains the output of the execution of the .CMD and .PS1 file. This file can be good for troubleshooting.
 
