@@ -60,6 +60,11 @@ param
     $WorkDirectory = 'C:\temp\log4j-vscan'
 )
 
+$g_ISO_Date_with_time = Get-Date -format "yyyy-MM-dd HH:mm:ss"
+$Agent_log_dest="C:\ProgramData\McAfee\Agent\logs\" # Read this value from registry
+Write-Host $g_ISO_Date_with_time" h4l4j start "$args
+
+
 function write_customprops() {
     param(
         [Int32]$prop,
@@ -137,13 +142,14 @@ $FiedArchive = ('{0}\{1}\new.zip' -f ($WorkDirectory), ($TempDirectory))
 $UnpackedDirectory = ('{0}\{1}\unpacked' -f ($WorkDirectory), ($TempDirectory))
 
 # Logging file, normally stored in workdir
-$LogFile = ('{0}\Log4j-Scann-Results-{1}.txt' -f ($WorkDirectory), (Get-Date -Format 'MM-dd-yyyy_HH-mm-ss'))
+$LogFile = ('{0}\Log4j-Scan-Results-{1}.txt' -f ($WorkDirectory), (Get-Date -Format 'MM-dd-yyyy_HH-mm-ss'))
 
 # confirm valid prop
 if (($Prop -eq $null) -or ($Prop -lt 1) -or ($Prop -gt 8)) {
-    "error: missing Prop argument"
-    Write-Verbose -Message ('Need to specify Prop between 1..8 inclusive')
-    exit
+    "error: missing Prop argument - Default to 8"
+    Write-Verbose -Message ('Need to specify Prop between -p 1..8 inclusive - Default to 8 ')
+    #exit
+    $prop=8
 }
 
 $Messages = @()
@@ -284,8 +290,26 @@ if ($foundUnsafe -gt 0) {
 if ($result_messages.Count -lt 1) {
     $result_messages = "Nothing found"
 }
-$result_message = $result_messages -join ", "
-write_customprops -prop $prop -value $result_message
+
+$result_message_str=""
+$result_message_str = $result_messages -join ", "
+$result_message_str = "H4L4J "+$g_ISO_Date_with_time+": "+$result_message_str+" - Check Log: "+$LogFile 
+write_customprops -prop $prop -value $result_message_str
+
+$g_ISO_Date_with_time = Get-Date -format "yyyy-MM-dd HH:mm:ss"
+try
+{
+    Copy-Item $LogFile $Agent_log_dest  -errorAction stop
+    Write-Host $g_ISO_Date_with_time" Success copy "$LogFile" to "$Agent_log_dest
+}
+catch
+{
+    Write-Host $g_ISO_Date_with_time" Failure copy "$LogFile" to "$Agent_log_dest
+}
+
+# End status
+Write-Host $g_ISO_Date_with_time" h4l4j done"
+
 
 #
 # Final Cleanup
