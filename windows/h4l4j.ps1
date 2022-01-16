@@ -281,7 +281,7 @@ if ($foundOutdated -gt 0) {
 if ($foundUnsafe -gt 0) {
     $result_messages = $result_messages + "found $($foundUnsafe) unsafe versions"
 }
-if ($result_messages.Count < 1) {
+if ($result_messages.Count -lt 1) {
     $result_messages = "Nothing found"
 }
 $result_message = $result_messages -join ", "
