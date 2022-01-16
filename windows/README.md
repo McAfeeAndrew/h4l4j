@@ -27,6 +27,7 @@ POTENTIAL AFFECTED: C:\Program Files (x86)\McAfee\ePolicy Orchestrator\updates\L
 Custom 8: H4L4J 2022-01-16 17:25:45: found 5 potential CVE-2021-44228 versions, found 5 unsafe versions - Check Log: C:\temp\log4j-vscan\Log4j-Scan-Results-01-16-2022_17-25-45.txt
 
 POTENTIAL AFFECTED: D:\Minecraft\Forge\libraries\org\apache\logging\log4j\log4j-core\2.14.1\log4j-core-2.14.1.jar
+
 POTENTIAL AFFECTED: D:\Minecraft\server\libraries\org\apache\logging\log4j\log4j-core\2.14.1\log4j-core-2.14.1.jar
 
 
