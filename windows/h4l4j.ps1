@@ -213,7 +213,7 @@ foreach ($FixedDisk in $AllFixedDisks.DriveLetter)
         {
             # Legacy warning
             Write-Verbose -Message ('Outdated Version: {0}' -f ($ver))
-            $foundOutdated = 0
+            $foundOutdated = 1
         }
         else
         {
